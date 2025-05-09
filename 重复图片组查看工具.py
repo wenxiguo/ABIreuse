@@ -52,9 +52,13 @@ if uploaded_file is not None:
     for i in range(num_images):
         with cols[i]:
             img_url = current_group_df.at[i, '图片']
-            pocid = current_group_df.at[i, 'pocid']
-            st.image(img_url, use_column_width=True)
-            st.caption(f"pocid: {pocid}")
+            st.image(img_url, use_container_width=True)
+            info_lines = []
+            for col in current_group_df.columns:
+                if col not in ['图片', '重复组']:
+                    value = current_group_df.at[i, col]
+                    info_lines.append(f"**{col}**: {value}")
+            st.markdown("<br>".join(info_lines), unsafe_allow_html=True)
 
 else:
     st.info("请上传一个有效的 CSV 文件")
