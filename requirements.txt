@@ -1,5 +1,6 @@
-streamlit
-pandas
-fpdf
-Pillow
-openpyxl
+streamlit>=1.32.0
+pandas>=1.5.0
+openpyxl>=3.1.2
+fpdf>=1.7.2
+Pillow>=9.5.0
+requests>=2.31.0
