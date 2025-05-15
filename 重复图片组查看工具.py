@@ -23,9 +23,9 @@ def get_chinese_font():
                     if fn_low.endswith(('.ttc', '.ttf', '.otf')) and \
                        any(k in fn_low for k in ('noto','cjk','wqy','hei','song','fang')):
                         return os.path.join(root, fn)
-    # 2) 备选：GitHub 上下载思源黑体子集.otf
-    remote = "https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Regular.otf"
-    tmp = os.path.join(tempfile.gettempdir(), "NotoSansSC-Regular.otf")
+    # 2) 远程下载 wweir/source-han-sans-sc 仓库里的 OTF
+    remote = "https://raw.githubusercontent.com/wweir/source-han-sans-sc/master/SourceHanSansSC-Regular.otf"
+    tmp = os.path.join(tempfile.gettempdir(), "SourceHanSansSC-Regular.otf")
     if not os.path.exists(tmp):
         resp = requests.get(remote, timeout=15)
         resp.raise_for_status()
@@ -33,24 +33,27 @@ def get_chinese_font():
             f.write(resp.content)
     return tmp
 
-# ─── 自定义 PDF ───────────────────────────────────────────────────────────────
+# ─── 自定义 PDF 类 ─────────────────────────────────────────────────────────────
 class PDF(FPDF):
     def __init__(self, font_path: str):
         super().__init__(orientation='L', format='A4')
         self.set_auto_page_break(auto=False)
         self.add_font('ChFont', '', font_path, uni=True)
 
-# ─── Streamlit APP ─────────────────────────────────────────────────────────────
+# ─── Streamlit 应用 ─────────────────────────────────────────────────────────────
 st.set_page_config(page_title="重复图片组查看工具", layout="wide")
 st.title("🖼️ 重复图片组查看工具")
-st.write("上传包含 `照片地址`、`相似组` 及任意字段的 CSV/XLSX 文件")
+st.write("上传包含 `照片地址`、`相似组` 以及任意字段的 CSV/XLSX 文件")
 
-# 上传 & 读表
+# 上传 & 读取
 uploaded = st.file_uploader("📄 上传 CSV / XLSX", type=["csv","xlsx"])
 if not uploaded:
     st.info("请先上传文件。"); st.stop()
-df = (pd.read_csv(uploaded) if uploaded.name.lower().endswith(".csv")
-      else pd.read_excel(uploaded, engine="openpyxl"))
+
+if uploaded.name.lower().endswith(".csv"):
+    df = pd.read_csv(uploaded)
+else:
+    df = pd.read_excel(uploaded, engine="openpyxl")
 df.columns = df.columns.str.strip()
 
 # 校验必选列
@@ -60,7 +63,7 @@ if not {'照片地址','相似组'}.issubset(df.columns):
 df = df[df['相似组'].notna()].copy()
 df['相似组'] = df['相似组'].astype(str)
 
-# 选择要在 PDF 中展示的其它字段
+# 让用户选输出字段
 fields = [c for c in df.columns if c not in ['照片地址','相似组']]
 selected = st.multiselect("✅ 选择展示字段", options=fields, default=fields)
 
@@ -149,5 +152,5 @@ if st.button("📤 生成并下载 PDF"):
         pdf.output(out)
 
     with open(out,"rb") as f:
-        st.success("✅ PDF 已生成！")
+        st.success("✅ PDF 已生成")
         st.download_button("📥 下载 PDF", data=f, file_name="重复图片组.pdf", mime="application/pdf")
