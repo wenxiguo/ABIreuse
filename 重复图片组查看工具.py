@@ -91,7 +91,7 @@ preview_cols = st.columns(min(len(grp), 6))
 for i, row in grp.iterrows():
     with preview_cols[i % len(preview_cols)]:
         # st.image(row['照片地址'], use_container_width=True)
-        st.image(row['照片地址'], width=150)
+        st.image(row['照片地址'], width=200)
         info = [f"**{f}**: {row[f]}" for f in selected]
         st.markdown("<br>".join(info), unsafe_allow_html=True)
 
