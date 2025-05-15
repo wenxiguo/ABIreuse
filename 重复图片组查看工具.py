@@ -22,11 +22,11 @@ def get_chinese_font():
                        any(k in fn.lower() for k in ('noto','wqy','hei','song','fang')):
                         return os.path.join(root, fn)
 
-    # 2) 远程下载 NotoSansSC-Regular.ttf（TrueType）
-    remote = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
-    tmp = os.path.join(tempfile.gettempdir(), "NotoSansSC-Regular.ttf")
+    # 2) 远程下载 variable TTF：NotoSansSC[wght].ttf
+    remote = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
+    tmp = os.path.join(tempfile.gettempdir(), "NotoSansSC[wght].ttf")
     if not os.path.exists(tmp):
-        resp = requests.get(remote, timeout=15)
+        resp = requests.get(remote, timeout=20)
         resp.raise_for_status()
         with open(tmp, "wb") as f:
             f.write(resp.content)
@@ -74,16 +74,18 @@ st.session_state.setdefault('group_index', 0)
 idx = st.session_state.group_index
 gid = group_ids[idx]
 st.subheader(f"🔁 当前相似组：{gid} （{idx+1}/{len(group_ids)}）")
-c1,c2 = st.columns(2)
+c1, c2 = st.columns(2)
 with c1:
-    if st.button("⬅️ 上一组") and idx>0:
-        st.session_state.group_index -= 1; st.rerun()
+    if st.button("⬅️ 上一组") and idx > 0:
+        st.session_state.group_index -= 1
+        st.rerun()
 with c2:
-    if st.button("➡️ 下一组") and idx < len(group_ids)-1:
-        st.session_state.group_index += 1; st.rerun()
+    if st.button("➡️ 下一组") and idx < len(group_ids) - 1:
+        st.session_state.group_index += 1
+        st.rerun()
 
 # 预览
-grp = df[df['相似组']==gid].reset_index(drop=True)
+grp = df[df['相似组'] == gid].reset_index(drop=True)
 st.markdown(f"### 当前组共有 {len(grp)} 张图片")
 preview_cols = st.columns(min(len(grp), 6))
 for i, row in grp.iterrows():
@@ -108,23 +110,23 @@ if st.button("📤 生成并下载 PDF"):
 
     with st.spinner("生成 PDF 中，请稍候..."):
         pdf = PDF(font_path)
-        pdf.set_margins(15,15,15)
+        pdf.set_margins(15, 15, 15)
         page_w = pdf.w - pdf.l_margin - pdf.r_margin
         page_h = pdf.h - pdf.t_margin - pdf.b_margin
 
         for gi in range(export_n):
-            sub = df[df['相似组']==group_ids[gi]].reset_index(drop=True)
+            sub = df[df['相似组'] == group_ids[gi]].reset_index(drop=True)
             n = min(len(sub), max_per)
             if n == 0:
                 continue
 
             pdf.add_page()
-            pdf.set_font('ChFont','',14)
+            pdf.set_font('ChFont', '', 14)
             pdf.cell(0, 10, f"相似组：{group_ids[gi]}", ln=True)
             y0 = pdf.get_y() + 2
 
             spacing = 5
-            cell_w = (page_w - spacing*(n-1)) / n
+            cell_w = (page_w - spacing * (n - 1)) / n
             reserved_h = (page_h - (y0 - pdf.t_margin)) * 0.25
             img_h_max = page_h - (y0 - pdf.t_margin) - reserved_h
 
@@ -134,17 +136,17 @@ if st.button("📤 生成并下载 PDF"):
                     resp = requests.get(row['照片地址'], timeout=5)
                     img = Image.open(BytesIO(resp.content))
                     ow, oh = img.size
-                    h_img = min(oh/ow * cell_w, img_h_max)
+                    h_img = min(oh / ow * cell_w, img_h_max)
 
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg").name
                     img.convert("RGB").save(tmp)
 
-                    x = pdf.l_margin + i*(cell_w + spacing)
+                    x = pdf.l_margin + i * (cell_w + spacing)
                     pdf.image(tmp, x=x, y=y0, w=cell_w, h=h_img)
                     os.unlink(tmp)
 
                     pdf.set_xy(x, y0 + h_img + 2)
-                    pdf.set_font('ChFont','',8)
+                    pdf.set_font('ChFont', '', 8)
                     txt = "\n".join(f"{f}: {row[f]}" for f in selected)
                     pdf.multi_cell(cell_w, 4, txt)
                 except Exception:
