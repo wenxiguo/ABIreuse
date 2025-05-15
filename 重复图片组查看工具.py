@@ -7,7 +7,7 @@ from fpdf import FPDF
 from io import BytesIO
 import os
 
-# ─── 查系统 TTF 字体 + 远程下载 TTF 备选 ───────────────────────────────────────
+# ─── 查系统 TTF 字体 + 远程下载备选 ───────────────────────────────────────
 def get_chinese_font():
     # 1) 本地扫描 TrueType 文件
     search_dirs = [
@@ -22,8 +22,8 @@ def get_chinese_font():
                        any(k in fn.lower() for k in ('noto','wqy','hei','song','fang')):
                         return os.path.join(root, fn)
 
-    # 2) 远程下载 NotoSansSC-Regular.ttf
-    remote = "https://github.com/googlefonts/noto-cjk/raw/main/Sans/TTF/SimplifiedChinese/NotoSansSC-Regular.ttf"
+    # 2) 远程下载 NotoSansSC-Regular.ttf（TrueType）
+    remote = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
     tmp = os.path.join(tempfile.gettempdir(), "NotoSansSC-Regular.ttf")
     if not os.path.exists(tmp):
         resp = requests.get(remote, timeout=15)
@@ -119,14 +119,12 @@ if st.button("📤 生成并下载 PDF"):
                 continue
 
             pdf.add_page()
-            # 组标题
             pdf.set_font('ChFont','',14)
             pdf.cell(0, 10, f"相似组：{group_ids[gi]}", ln=True)
             y0 = pdf.get_y() + 2
 
             spacing = 5
             cell_w = (page_w - spacing*(n-1)) / n
-            # 留出 25% 高度给文字
             reserved_h = (page_h - (y0 - pdf.t_margin)) * 0.25
             img_h_max = page_h - (y0 - pdf.t_margin) - reserved_h
 
@@ -145,7 +143,6 @@ if st.button("📤 生成并下载 PDF"):
                     pdf.image(tmp, x=x, y=y0, w=cell_w, h=h_img)
                     os.unlink(tmp)
 
-                    # 文本区
                     pdf.set_xy(x, y0 + h_img + 2)
                     pdf.set_font('ChFont','',8)
                     txt = "\n".join(f"{f}: {row[f]}" for f in selected)
