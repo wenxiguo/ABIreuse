@@ -29,7 +29,6 @@ def get_chinese_font():
                     low = fn.lower()
                     if low.endswith('.ttc') and any(k in low for k in ('noto','wqy','hei','song','fang')):
                         return os.path.join(root, fn)
-    # 3) 未找到
     return None
 
 # ─── 自定义横向 A4 PDF ─────────────────────────────────────────────────────────
@@ -95,7 +94,7 @@ st.markdown(f"### 当前组共有 {len(grp)} 张图片")
 preview_cols = st.columns(min(len(grp), 6))
 for i, row in grp.iterrows():
     with preview_cols[i % len(preview_cols)]:
-        st.image(row['照片地址'], width=250)
+        st.image(row['照片地址'], width=120)
         info = [f"**{f}**: {row[f]}" for f in selected]
         st.markdown("<br>".join(info), unsafe_allow_html=True)
 
@@ -155,9 +154,16 @@ if st.button("📤 生成并下载 PDF"):
                 except Exception:
                     continue
 
+        # 把 PDF 文件内容读为 bytes 再传给 download_button
         out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
         pdf.output(out_path)
+        with open(out_path, "rb") as f:
+            pdf_bytes = f.read()
 
-    with open(out_path, "rb") as f:
-        st.success("✅ PDF 已生成！")
-        st.download_button("📥 下载 PDF", data=f, file_name="重复图片组.pdf", mime="application/pdf")
+    st.success("✅ PDF 已生成！")
+    st.download_button(
+        label="📥 下载 PDF",
+        data=pdf_bytes,
+        file_name="重复图片组.pdf",
+        mime="application/pdf"
+    )
