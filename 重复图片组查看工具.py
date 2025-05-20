@@ -7,39 +7,39 @@ from fpdf import FPDF
 from io import BytesIO
 import os
 
-# ─── 查系统 TTF 字体 + 远程下载备选 ───────────────────────────────────────
+# ─── 查系统字体：先扫 .ttf，再扫 .ttc，不再网络下载 ────────────────────────────────
 def get_chinese_font():
-    # 1) 本地扫描 TrueType 文件
     search_dirs = [
         '/usr/share/fonts', '/usr/local/share/fonts',
         '/System/Library/Fonts', '/Library/Fonts'
     ]
+    # 1) 本地扫描 TrueType (.ttf)
     for base in search_dirs:
         if os.path.isdir(base):
             for root, _, files in os.walk(base):
                 for fn in files:
-                    if fn.lower().endswith('.ttf') and \
-                       any(k in fn.lower() for k in ('noto','wqy','hei','song','fang')):
+                    low = fn.lower()
+                    if low.endswith('.ttf') and any(k in low for k in ('noto','wqy','hei','song','fang')):
                         return os.path.join(root, fn)
+    # 2) 本地扫描字体集合 (.ttc)
+    for base in search_dirs:
+        if os.path.isdir(base):
+            for root, _, files in os.walk(base):
+                for fn in files:
+                    low = fn.lower()
+                    if low.endswith('.ttc') and any(k in low for k in ('noto','wqy','hei','song','fang')):
+                        return os.path.join(root, fn)
+    # 3) 未找到
+    return None
 
-    # 2) 远程下载 variable TTF：NotoSansSC[wght].ttf
-    remote = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
-    tmp = os.path.join(tempfile.gettempdir(), "NotoSansSC[wght].ttf")
-    if not os.path.exists(tmp):
-        resp = requests.get(remote, timeout=20)
-        resp.raise_for_status()
-        with open(tmp, "wb") as f:
-            f.write(resp.content)
-    return tmp
-
-# ─── 自定义横向 A4 PDF ───────────────────────────────────────────────────────
+# ─── 自定义横向 A4 PDF ─────────────────────────────────────────────────────────
 class PDF(FPDF):
     def __init__(self, font_path: str):
         super().__init__(orientation='L', format='A4')
         self.set_auto_page_break(auto=False)
         self.add_font('ChFont', '', font_path, uni=True)
 
-# ─── Streamlit 应用 ───────────────────────────────────────────────────────────
+# ─── Streamlit 应用 ─────────────────────────────────────────────────────────────
 st.set_page_config(page_title="重复图片组查看工具", layout="wide")
 st.title("🖼️ 重复图片组查看工具")
 st.write("上传包含 `照片地址`、`相似组` 以及其他字段的 CSV/XLSX 文件")
@@ -66,13 +66,18 @@ df['相似组'] = df['相似组'].astype(str)
 
 # 字段多选
 fields = [c for c in df.columns if c not in ['照片地址','相似组']]
-selected = st.multiselect("✅ 选择要在 PDF 中展示的字段", options=fields, default=fields)
+selected = st.multiselect(
+    "✅ 选择要在 PDF 中展示的字段",
+    options=fields,
+    default=fields
+)
 
 # 分组导航
 group_ids = sorted(df['相似组'].unique())
 st.session_state.setdefault('group_index', 0)
 idx = st.session_state.group_index
 gid = group_ids[idx]
+
 st.subheader(f"🔁 当前相似组：{gid} （{idx+1}/{len(group_ids)}）")
 c1, c2 = st.columns(2)
 with c1:
@@ -90,7 +95,6 @@ st.markdown(f"### 当前组共有 {len(grp)} 张图片")
 preview_cols = st.columns(min(len(grp), 6))
 for i, row in grp.iterrows():
     with preview_cols[i % len(preview_cols)]:
-        # st.image(row['照片地址'], use_container_width=True)
         st.image(row['照片地址'], width=250)
         info = [f"**{f}**: {row[f]}" for f in selected]
         st.markdown("<br>".join(info), unsafe_allow_html=True)
@@ -102,11 +106,9 @@ export_n = st.number_input("导出前 N 组", min_value=1, max_value=len(group_i
 max_per = st.number_input("每组最多导出图片数", min_value=1, value=5)
 
 if st.button("📤 生成并下载 PDF"):
-    # 获取或下载字体
-    try:
-        font_path = get_chinese_font()
-    except Exception as e:
-        st.error(f"❌ 无法获取中文字体：{e}")
+    font_path = get_chinese_font()
+    if not font_path:
+        st.error("❌ 未找到中文字体，请通过 apt.txt 安装 fonts-noto-cjk 或 fonts-wqy-zenhei 后重试。")
         st.stop()
 
     with st.spinner("生成 PDF 中，请稍候..."):
