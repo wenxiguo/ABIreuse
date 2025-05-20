@@ -21,7 +21,7 @@ def get_chinese_font():
                     low = fn.lower()
                     if low.endswith('.ttf') and any(k in low for k in ('noto','wqy','hei','song','fang')):
                         return os.path.join(root, fn)
-    # 2) 再扫字体集合 (.ttc)
+    # 2) 扫描字体集合 (.ttc)
     for base in search_dirs:
         if os.path.isdir(base):
             for root, _, files in os.walk(base):
@@ -29,6 +29,7 @@ def get_chinese_font():
                     low = fn.lower()
                     if low.endswith('.ttc') and any(k in low for k in ('noto','wqy','hei','song','fang')):
                         return os.path.join(root, fn)
+    # 3) 未找到
     return None
 
 # ─── 自定义横向 A4 PDF ─────────────────────────────────────────────────────────
@@ -104,9 +105,7 @@ st.markdown("### 🧾 导出 PDF （横向 A4，每页一组）")
 export_n = st.number_input("导出前 N 组", min_value=1, max_value=len(group_ids), value=1)
 max_per = st.number_input("每组最多导出图片数", min_value=1, value=5)
 
-# 生成并立即提供下载
 if st.button("📤 生成并下载 PDF"):
-    # 找字体
     font_path = get_chinese_font()
     if not font_path:
         st.error("❌ 未找到中文字体，请通过 apt.txt 安装 fonts-noto-cjk 或 fonts-wqy-zenhei 后重试。")
@@ -118,7 +117,6 @@ if st.button("📤 生成并下载 PDF"):
         page_w = pdf.w - pdf.l_margin - pdf.r_margin
         page_h = pdf.h - pdf.t_margin - pdf.b_margin
 
-        # 遍历 N 组
         for gi in range(export_n):
             sub = df[df['相似组'] == group_ids[gi]].reset_index(drop=True)
             n = min(len(sub), max_per)
@@ -152,18 +150,17 @@ if st.button("📤 生成并下载 PDF"):
 
                     pdf.set_xy(x, y0 + h_img + 2)
                     pdf.set_font('ChFont', '', 8)
-                    txt = "\n".join(f"{f}": {row[f]}" for f in selected)
+                    # ← 修正这行的 f-string
+                    txt = "\n".join(f"{f}: {row[f]}" for f in selected)
                     pdf.multi_cell(cell_w, 4, txt)
                 except Exception:
                     continue
 
-        # 输出 bytes
         out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
         pdf.output(out_path)
-        with open(out_path, "rb") as f:
-            pdf_bytes = f.read()
 
-    # 生成完成，直接展示下载按钮
+    with open(out_path, "rb") as f:
+        pdf_bytes = f.read()
     st.success("✅ PDF 已生成！")
     st.download_button(
         label="📥 下载 PDF",
